@@ -1,4 +1,4 @@
-package com.telusko.SpringSecurity;
+package com.telusko.SpringSecurity.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;

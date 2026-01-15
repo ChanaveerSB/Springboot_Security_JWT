@@ -38,7 +38,19 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
-
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+<!--			below version commented because in line 7 and 8 its already decided version as a parent-->
+<!--			<version>3.3.11</version>-->
+<!--			<scope>compile</scope>-->
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+<!--			<version>42.7.7</version>-->
+<!--			<scope>compile</scope>-->
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
