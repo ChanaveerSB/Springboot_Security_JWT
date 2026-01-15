@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
@@ -112,8 +113,18 @@ public class SecurityConfig {
     public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService){
         //There are multiple AuthProvider and one of them is for DataBase and that is DaoAuthenticationProvider
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();     //(deprecated method) it will not work directly as This one needs to connect with the database (PostgreSQL)
-        //Now we are using default password encoder
-        provider.setPasswordEncoder(NoOpPasswordEncoder.getInstance());     //(deprecated method)
+
+        //Now we are using default password encoder (not BCryptPasswordEncoder)
+//        provider.setPasswordEncoder(NoOpPasswordEncoder.getInstance());     //(deprecated method)
+
+        //*****
+        //Later changed above line to implement BCryptPasswordEncoder instead a default NoOpPasswordEncoder
+        provider.setPasswordEncoder(new BCryptPasswordEncoder(12));
+        //Above line says "Hey authentication provider the password encoder u have to use is  BCryptPasswordEncoder of strength 12 "
+        //During register(SignIn): User enters plain password → BCrypt hashes it (with salt) → only the hashed password is saved in the database
+        //During login: Database provides the stored hash → entered plain password is re-hashed → hashes are compared for authentication
+        //*****
+
         //setting our own UserDetailService by Autowiring in second line below (current) SecurityConfig class
         provider.setUserDetailsService(userDetailsService);     //(deprecated method) (entity)class containing our own required user details to provide authentication service
 
