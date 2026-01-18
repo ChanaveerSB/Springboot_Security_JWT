@@ -3,9 +3,11 @@ package com.telusko.SpringSecurity.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 
 @Configuration
@@ -25,6 +28,9 @@ public class SecurityConfig {
 
     @Autowired
     private UserDetailsService userDetailsService;
+
+    @Autowired
+    private JwtFilter jwtFilter;
 
     //bean for security filter chain
     @Bean
@@ -68,11 +74,26 @@ public class SecurityConfig {
 
                     //OR//
 
+        //before placing : JWT filter before the UsernamePasswordAuthentication (UPA) Filter
+//        return http
+//                .csrf(customizer -> customizer.disable()) // Disables CSRF protection (common for stateless APIs)
+//                .authorizeHttpRequests(request -> request
+//                        .requestMatchers("register","login").permitAll()    //for these two request we don't have to check for Authentication because they're now newly logging in, and we just have to generate Jwt token for them. So to Authenticate them using jwt token in all th upcoming requests from them after logged in
+//                        .anyRequest().authenticated()) // Requires authentication for all requests (By default the authentication we follow is UserPasswordAuthentication - it checks uname and pwd)
+//                .httpBasic(Customizer.withDefaults()) // Enables HTTP Basic authentication (credentials in headers)
+//                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .build();
+
+        //After placing the JWT filter , before the UPA filter
         return http
                 .csrf(customizer -> customizer.disable()) // Disables CSRF protection (common for stateless APIs)
-                .authorizeHttpRequests(request -> request.anyRequest().authenticated()) // Requires authentication for all requests
+                .authorizeHttpRequests(request -> request
+                        .requestMatchers("register","login").permitAll()    //for these two request we don't have to check for Authentication because they're now newly logging in, and we just have to generate Jwt token for them. So to Authenticate them using jwt token in all th upcoming requests from them after logged in
+                        .anyRequest().authenticated()) // Requires authentication for all requests (By default the authentication we follow is UserPasswordAuthentication - it checks uname and pwd)
                 .httpBasic(Customizer.withDefaults()) // Enables HTTP Basic authentication (credentials in headers)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) //add JWT filter before UPA filter in below code
+                //.addFilterBefore() method First parameter is OBJECT (ie reference) of Actual Filter(JWTFilter) that u want to add before. Second parameter is the filter class before which first
                 .build();
 
 //        formLogin(Customizer.withDefaults());    //disable to avoid repeated login with each new request(Session Id) switches to popup authentication (uname & pwd)
@@ -130,5 +151,13 @@ public class SecurityConfig {
 
         return provider;
 
+    }
+
+    //Behind the sceans all the verification of user is correct or not is happening
+    //JWT start
+    //We are taking control of login (when user is passing uname and pwd we are manually verifying it, We are asking AuthenticationManager "hey we got details, take these details and let me know whether user is logged in or not"
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 }
