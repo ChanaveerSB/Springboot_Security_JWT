@@ -1,8 +1,11 @@
 package com.telusko.SpringSecurity.service;
 
+
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.KeyGenerator;
@@ -13,23 +16,25 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @Service
 public class JWTService {
 
     private String secretKey = "" ;
 
-//    public JWTService(){
-//        //We can write below try catch code from this constructor inside the starting of getKey method (present at last in this class)
-//        try {
-//            //KeyGenerator is in javax.crypto package
-//            KeyGenerator keyGen = KeyGenerator.getInstance("HmacSHA256");   //this might throw an exception but this is in constructor so we cover with try catch
-//            SecretKey sk = keyGen.generateKey();    //keyGen.generateKey() this method will generate key but gives in SecretKey Type.
-//            secretKey = Base64.getEncoder().encodeToString(sk.getEncoded());    //converts sk into string type as required
-//        } catch (NoSuchAlgorithmException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
+    public JWTService(){
+        //We can write below try catch code from this constructor inside the starting of getKey method (present at last in this class)
+        try {
+            //KeyGenerator is in javax.crypto package
+            KeyGenerator keyGen = KeyGenerator.getInstance("HmacSHA256");   //this might throw an exception but this is in constructor so we cover with try catch
+            SecretKey sk = keyGen.generateKey();    //keyGen.generateKey() this method will generate key but gives in SecretKey Type.
+            secretKey = Base64.getEncoder().encodeToString(sk.getEncoded());    //converts sk into string type as required
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
 
     public String generateToken(String username) {
@@ -62,17 +67,7 @@ public class JWTService {
 
     //or
 
-    private Key getKey() {
-        //KeyGenerator is in javax.crypto package
-        try {
-            //KeyGenerator is in javax.crypto package
-            KeyGenerator keyGen = KeyGenerator.getInstance("HmacSHA256");   //this might throw an exception
-            //We used try catch because if we use throws in method signature then it will pass to method call(line no 63) and that will pass to its method call(UserService class - line no 40). Thus, we used try catch here itself so not throw the exception to all method call chains
-            SecretKey sk = keyGen.generateKey();    //keyGen.generateKey() this method will generate key but gives in SecretKey Type.
-            secretKey = Base64.getEncoder().encodeToString(sk.getEncoded());    //converts sk into string type as required
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
+    private SecretKey getKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);    //Keys.hmacShaKeyFor() takes in bytes so we convert String (secretKey) in bytes then pass to Keys.hmacShaKeyFor() which returns secretKey in bytes as Key object type
         return Keys.hmacShaKeyFor(keyBytes);   //As secretKey is String, and we need Key type object to be returned. So we use Keys.hmacShaKeyFor() ,but it takes in bytes so we convert String in bytes then pass to Keys.hmacShaKeyFor() which returns secretKey in bytes as Key object type
     }
@@ -87,7 +82,38 @@ public class JWTService {
     //If Jwt validates that the user is logged in then it confirms UPA filter that I have already Authenticated this user using their JWT Token (ie they are logged in) so u can continue the other works
     //that means we have to add JWT filter before UPA filter. So we will make changes in SecurityConfig class to add Jwt filter before the UPA filter
 
+
+
+    //For below methods there ae lots of process to get their particular required tasks to be done correctly
+    //So telusko copy pastes code and explained
     public String extractUsername(String token) {
-        return "";
+        return extractClaim(token, Claims::getSubject);
     }
+
+    private <T> T extractClaim(String token, Function<Claims, T> claimResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimResolver.apply(claims);
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    public boolean validateToken(String token, UserDetails userDetails) {
+        final String userName = extractUsername(token);
+        return (userName.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
+    }
+
 }
